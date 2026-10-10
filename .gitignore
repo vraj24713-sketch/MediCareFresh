@@ -4,3 +4,5 @@ node_modules/
 !.env.example
 dist/
 .DS_Store
+# Local SQLite database files
+server/medicare.db*
