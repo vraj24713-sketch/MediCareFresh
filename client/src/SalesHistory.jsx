@@ -49,9 +49,45 @@ function SalesHistory({ onBack }) {
     }
   }, [])
 
-  useEffect(() => {
-    loadSales()
-  }, [loadSales])
+  
+useEffect(() => {
+  let cancelled = false
+
+  async function fetchInitialSales() {
+    try {
+      const response = await fetch(API_URL)
+      const result = await response.json()
+
+      if (!response.ok || result.success === false) {
+        throw new Error(result.message || 'Could not load sales history.')
+      }
+
+      const records = Array.isArray(result)
+        ? result
+        : result.data || result.sales || []
+
+      if (!cancelled) {
+        setSales(records)
+        setError('')
+      }
+    } catch (err) {
+      if (!cancelled) {
+        setError(err.message || 'Unable to connect to the backend.')
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false)
+      }
+    }
+  }
+
+  fetchInitialSales()
+
+  return () => {
+    cancelled = true
+  }
+}, [])
+
 
   const filteredSales = useMemo(() => {
     return sales.filter(sale => {

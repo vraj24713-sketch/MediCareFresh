@@ -53,9 +53,54 @@ function Billing({ onBack }) {
     }
   }, [])
 
-  useEffect(() => {
-    loadMedicines()
-  }, [loadMedicines])
+   
+useEffect(() => {
+  let cancelled = false
+
+  async function fetchInitialMedicines() {
+    try {
+      const response = await fetch(`${API_URL}/medicines`)
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Could not load medicines.')
+      }
+
+      const list = Array.isArray(result)
+        ? result
+        : result.data || result.medicines || result.value || []
+
+      if (!cancelled) {
+        setMedicines(
+          list.map(medicine => ({
+            ...medicine,
+            id: String(medicine._id ?? medicine.id),
+            price: Number(medicine.price) || 0,
+            stock: Number(medicine.quantity ?? medicine.stock) || 0,
+          }))
+        )
+        setError('')
+      }
+    } catch (err) {
+      if (!cancelled) {
+        setError(
+          `${err.message} Make sure the backend is running on port 5000.`
+        )
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false)
+      }
+    }
+  }
+
+  fetchInitialMedicines()
+
+  return () => {
+    cancelled = true
+  }
+}, [])
+ 
 
   const filteredMedicines = medicines.filter(medicine =>
     medicine.name?.toLowerCase().includes(search.toLowerCase())

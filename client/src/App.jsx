@@ -67,8 +67,45 @@ function App() {
   }
 
   useEffect(() => {
-    loadMedicines()
-  }, [])
+  let cancelled = false
+
+  async function fetchInitialMedicines() {
+    try {
+      const response = await fetch(API)
+
+      if (!response.ok) {
+        throw new Error('Could not load medicines')
+      }
+
+      const data = await response.json()
+
+      if (!cancelled) {
+        setMedicines(
+          Array.isArray(data)
+            ? data
+            : data.medicines || data.data || []
+        )
+        setError('')
+      }
+    } catch {
+      if (!cancelled) {
+        setError(
+          'Cannot connect to the backend. Make sure the server is running on port 5000.'
+        )
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false)
+      }
+    }
+  }
+
+  fetchInitialMedicines()
+
+  return () => {
+    cancelled = true
+  }
+}, [])
 
   function openAddForm() {
     setEditingId(null)
