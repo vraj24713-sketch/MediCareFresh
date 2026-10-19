@@ -44,6 +44,7 @@ function App() {
   async function loadMedicines() {
     try {
       setError('')
+
       const response = await fetch(API)
 
       if (!response.ok) {
@@ -57,55 +58,60 @@ function App() {
           ? data
           : data.medicines || data.data || []
       )
+
+      return true
     } catch {
       setError(
         'Cannot connect to the backend. Make sure the server is running on port 5000.'
       )
+
+      return false
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-  let cancelled = false
+    let cancelled = false
 
-  async function fetchInitialMedicines() {
-    try {
-      const response = await fetch(API)
+    async function fetchInitialMedicines() {
+      try {
+        const response = await fetch(API)
 
-      if (!response.ok) {
-        throw new Error('Could not load medicines')
-      }
+        if (!response.ok) {
+          throw new Error('Could not load medicines')
+        }
 
-      const data = await response.json()
+        const data = await response.json()
 
-      if (!cancelled) {
-        setMedicines(
-          Array.isArray(data)
-            ? data
-            : data.medicines || data.data || []
-        )
-        setError('')
-      }
-    } catch {
-      if (!cancelled) {
-        setError(
-          'Cannot connect to the backend. Make sure the server is running on port 5000.'
-        )
-      }
-    } finally {
-      if (!cancelled) {
-        setLoading(false)
+        if (!cancelled) {
+          setMedicines(
+            Array.isArray(data)
+              ? data
+              : data.medicines || data.data || []
+          )
+
+          setError('')
+        }
+      } catch {
+        if (!cancelled) {
+          setError(
+            'Cannot connect to the backend. Make sure the server is running on port 5000.'
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }
-  }
 
-  fetchInitialMedicines()
+    fetchInitialMedicines()
 
-  return () => {
-    cancelled = true
-  }
-}, [])
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function openAddForm() {
     setEditingId(null)
@@ -235,6 +241,8 @@ function App() {
   if (currentPage === 'alerts') {
     return (
       <Alerts
+        medicines={medicines}
+        onRefresh={loadMedicines}
         onBack={() => setCurrentPage('dashboard')}
       />
     )
@@ -274,6 +282,103 @@ function App() {
       .includes(search.toLowerCase())
   )
 
+  if (currentPage === 'inventory') {
+    return (
+      <div className="app-shell">
+        <aside className="sidebar">
+          <div className="brand">
+            <span className="brand-icon"><Activity /></span>
+            <div><strong>MediCare</strong><small>STORE MANAGEMENT</small></div>
+          </div>
+          <p className="nav-label">WORKSPACE</p>
+          <button type="button" className="nav-item" onClick={() => setCurrentPage('dashboard')}>
+            <LayoutDashboard size={19} /> Dashboard
+          </button>
+          <button type="button" className="nav-item active" onClick={() => setCurrentPage('inventory')}>
+            <Package size={19} /> Medicine Inventory
+          </button>
+          <button type="button" className="nav-item" onClick={() => setCurrentPage('alerts')}>
+            <AlertTriangle size={19} /> Stock &amp; Expiry Alerts
+          </button>
+          <button type="button" className="nav-item" onClick={() => setCurrentPage('billing')}>
+            <ReceiptText size={19} /> Sales &amp; Billing
+          </button>
+          <button type="button" className="nav-item" onClick={() => setCurrentPage('sales')}>
+            <ReceiptText size={19} /> Sales History
+          </button>
+          <div className="sidebar-bottom">
+            <div className="status-dot" /> Inventory system <span>●</span>
+            <small>Full Stack Mini Project</small>
+          </div>
+        </aside>
+
+        <main className="main-content">
+          <header className="topbar">
+            <div><span className="breadcrumb">Workspace /</span>{' '}<strong>Medicine Inventory</strong></div>
+            <div className="profile"><span className="profile-avatar">M</span><div><strong>Store Admin</strong><small>Administrator</small></div></div>
+          </header>
+
+          <section className="welcome">
+            <div><p className="eyebrow">INVENTORY</p><h1>Medicine Inventory</h1><p>Manage, search, and update your available medicines.</p></div>
+            <button type="button" className="primary-button" onClick={openAddForm}><Plus size={18} /> Add Medicine</button>
+          </section>
+
+          {error && <div className="error-banner" role="alert">{error}</div>}
+
+          <section className="inventory-panel">
+            <div className="panel-heading">
+              <div><h2>Medicine Inventory</h2><p>{medicines.length} medicine{medicines.length === 1 ? '' : 's'} in your inventory.</p></div>
+              <button type="button" className="secondary-button" onClick={loadMedicines}>Refresh</button>
+            </div>
+            <div className="search-box">
+              <Search size={18} />
+              <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search medicine, category or manufacturer..." aria-label="Search medicine inventory" />
+            </div>
+            {loading ? <p className="empty-state">Loading inventory...</p> : filtered.length === 0 ? (
+              <div className="empty-state"><Package size={35} /><strong>No medicines found</strong><p>{search ? 'Try a different search term.' : 'Add your first medicine to get started.'}</p><button type="button" className="primary-button" onClick={openAddForm}><Plus size={17} /> Add Medicine</button></div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>MEDICINE</th><th>CATEGORY</th><th>PRICE</th><th>QUANTITY</th><th>EXPIRY DATE</th><th>STATUS</th><th>ACTIONS</th></tr></thead>
+                  <tbody>{filtered.map(medicine => {
+                    const expiry = medicine.expiry_date ? String(medicine.expiry_date).slice(0, 10) : ''
+                    const isExpired = expiry && expiry < today
+                    return <tr key={medicine.id ?? medicine._id}>
+                      <td><strong>{medicine.name}</strong><small className="sub-cell">{medicine.manufacturer || '—'}</small></td>
+                      <td>{medicine.category || '—'}</td>
+                      <td>₹{Number(medicine.price || 0).toFixed(2)}</td>
+                      <td>{medicine.quantity ?? 0}</td>
+                      <td>{expiry || '—'}</td>
+                      <td>{isExpired ? <span className="badge expired">Expired</span> : Number(medicine.quantity) <= 10 ? <span className="badge low">Low stock</span> : <span className="badge available">In stock</span>}</td>
+                      <td><div className="action-buttons"><button type="button" className="icon-button edit-button" title="Edit medicine" onClick={() => openEditForm(medicine)}><Pencil size={16} /></button><button type="button" className="icon-button delete-button" title="Delete medicine" onClick={() => deleteMedicine(medicine)}><Trash2 size={16} /></button></div></td>
+                    </tr>
+                  })}</tbody>
+                </table>
+              </div>
+            )}
+          </section>
+          <footer className="footer"><span>MediCare Inventory Management</span><span>Full Stack Development Mini Project</span></footer>
+        </main>
+
+        {showForm && (
+          <div className="modal-backdrop" onClick={() => setShowForm(false)}>
+            <section className="modal" onClick={event => event.stopPropagation()}>
+              <div className="modal-heading"><div><h2>{editingId ? 'Edit Medicine' : 'Add Medicine'}</h2><p>Enter the medicine details below.</p></div><button type="button" className="close-button" onClick={() => setShowForm(false)} aria-label="Close form"><X size={20} /></button></div>
+              <form onSubmit={saveMedicine}>
+                <label>Medicine name *<input required value={form.name} onChange={event => setForm({ ...form, name: event.target.value })} placeholder="e.g. Vitamin C 500mg" /></label>
+                <div className="form-row"><label>Category *<input required value={form.category} onChange={event => setForm({ ...form, category: event.target.value })} placeholder="e.g. Vitamins" /></label><label>Manufacturer<input value={form.manufacturer} onChange={event => setForm({ ...form, manufacturer: event.target.value })} placeholder="Company name" /></label></div>
+                <div className="form-row"><label>Price (₹) *<input required type="number" min="0" step="0.01" value={form.price} onChange={event => setForm({ ...form, price: event.target.value })} placeholder="60" /></label><label>Quantity *<input required type="number" min="0" step="1" value={form.quantity} onChange={event => setForm({ ...form, quantity: event.target.value })} placeholder="25" /></label></div>
+                <label>Expiry date *<input required type="date" value={form.expiry_date} onChange={event => setForm({ ...form, expiry_date: event.target.value })} /></label>
+                <label className="checkbox-label"><input type="checkbox" checked={form.prescription_required} onChange={event => setForm({ ...form, prescription_required: event.target.checked })} /> Prescription required</label>
+                <div className="modal-actions"><button type="button" className="secondary-button" onClick={() => setShowForm(false)}>Cancel</button><button type="submit" className="primary-button" disabled={saving}>{saving ? 'Saving...' : editingId ? 'Update Medicine' : 'Save Medicine'}</button></div>
+              </form>
+            </section>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -301,18 +406,18 @@ function App() {
           Dashboard
         </button>
 
-        <button
-          type="button"
-          className="nav-item"
-          onClick={() =>
-            document
-              .querySelector('.inventory-panel')
-              ?.scrollIntoView({ behavior: 'smooth' })
-          }
-        >
-          <Package size={19} />
-          Medicine Inventory
-        </button>
+        
+<button
+  type="button"
+  className={`nav-item ${
+    currentPage === 'inventory' ? 'active' : ''
+  }`}
+  onClick={() => setCurrentPage('inventory')}
+>
+  <Package size={19} />
+  Medicine Inventory
+</button>
+
 
         <button
           type="button"
@@ -352,8 +457,7 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <div>
-            <span className="breadcrumb">Workspace /</span>
-            {' '}
+            <span className="breadcrumb">Workspace /</span>{' '}
             <strong>Dashboard</strong>
           </div>
 
@@ -377,6 +481,7 @@ function App() {
           </div>
 
           <button
+            type="button"
             className="primary-button"
             onClick={openAddForm}
           >
@@ -386,7 +491,9 @@ function App() {
         </section>
 
         {error && (
-          <div className="error-banner">{error}</div>
+          <div className="error-banner" role="alert">
+            {error}
+          </div>
         )}
 
         <section className="stats-grid">
@@ -464,6 +571,7 @@ function App() {
             </div>
 
             <button
+              type="button"
               className="secondary-button"
               onClick={loadMedicines}
             >
@@ -478,6 +586,7 @@ function App() {
               value={search}
               onChange={event => setSearch(event.target.value)}
               placeholder="Search medicine, category or manufacturer..."
+              aria-label="Search medicine inventory"
             />
           </div>
 
@@ -498,6 +607,7 @@ function App() {
               </p>
 
               <button
+                type="button"
                 className="primary-button"
                 onClick={openAddForm}
               >
@@ -526,8 +636,7 @@ function App() {
                       ? String(medicine.expiry_date).slice(0, 10)
                       : ''
 
-                    const isExpired =
-                      expiry && expiry < today
+                    const isExpired = expiry && expiry < today
 
                     return (
                       <tr
@@ -628,6 +737,7 @@ function App() {
                 type="button"
                 className="close-button"
                 onClick={() => setShowForm(false)}
+                aria-label="Close form"
               >
                 <X size={20} />
               </button>
