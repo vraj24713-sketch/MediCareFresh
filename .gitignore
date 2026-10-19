@@ -1,8 +1,33 @@
+
+# Dependencies
 node_modules/
+client/node_modules/
+server/node_modules/
+
+# Environment variables and secrets
 .env
 .env.*
 !.env.example
+client/.env
+client/.env.*
+server/.env
+server/.env.*
+
+# Build output
 dist/
-.DS_Store
+client/dist/
+server/dist/
+
 # Local SQLite database files
 server/medicare.db*
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+npm-debug.log*
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.vscode/
